@@ -1,0 +1,12 @@
+[package]
+name = "ext_llama"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pyo3 = { version = "0.15.1", features = ["extension-module"] }
+rayon = "1.5"
+dashmap = "5"
+
+[lib]
+crate-type = ["cdylib"]
