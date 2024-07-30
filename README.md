@@ -18,3 +18,5 @@ python3 ext_llama.py --text test.xt --vocab_size 128050
 ```
 
 Implementation is pretty scuffed, use at your own peril
+
+The follow the ipynb at your own risk
