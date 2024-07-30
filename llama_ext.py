@@ -1,6 +1,7 @@
 import json
 import regex as re
 import time
+import gc
 
 from transformers import AutoTokenizer
 
@@ -29,11 +30,13 @@ class Tokenizer:
         text_chunks = re.findall(re_pattern, text)
         del text
         print("Time to split", time.time() - init_time)
-
+        gc.collect()
+        
         ids = self.init_encode(text_chunks, initial_tokenizer)
         del text_chunks
         print("Time to encode", time.time() - init_time)
-
+        gc.collect()
+        
         self.merges, vocab_as_usize = rust_train_loop(ids, num_merges, init_vocab_size, self.vocab, self.merges)
         
         print("Time to complete", time.time() - init_time)
@@ -57,10 +60,9 @@ class Tokenizer:
 
     def init_encode(self, text_chunks, initial_tokenizer=None):
         if not initial_tokenizer:
-            ids = [list(ch.encode("utf-8")) for ch in text_chunks]
+            return [list(ch.encode("utf-8")) for ch in text_chunks]
         else:
-            ids = [initial_tokenizer.encode(ch)[1:] for ch in text_chunks]
-        return ids
+            return [initial_tokenizer.encode(ch)[1:] for ch in text_chunks]
 
     def _build_vocab(self):
         vocab = {idx: bytes([idx]) for idx in range(256)}
@@ -91,6 +93,7 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument("--text", type=str, default=False, help="corpus")
         parser.add_argument("--vocab_size", type=int, default=130000, help="vocab size")
+        parser.add_argument('--use_fast', action='store_true', help="Use fast tokenizer")
         return parser.parse_args()
 
     args = parse_args()
@@ -98,7 +101,7 @@ if __name__ == "__main__":
     with open(args.text, 'r', encoding='utf-8') as f:
         text = f.read()
 
-    llama_3_init = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
+    llama_3_init = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", use_fast=args.use_fast)
     tok = Tokenizer()
 
     tok.train(text, args.vocab_size, llama_3_init, verbose=True)
