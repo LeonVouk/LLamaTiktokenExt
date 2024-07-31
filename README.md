@@ -14,7 +14,7 @@ maturin develop
 ```
 
 ```console
-python3 ext_llama.py --text test.xt --vocab_size 128050
+python3 ext_llama.py --text test.txt --vocab_size 128050
 ```
 
 Implementation is pretty scuffed, use at your own peril
