@@ -2,7 +2,7 @@ import json
 import regex as re
 import time
 import gc
-
+from multiprocessing import Pool, cpu_count
 from transformers import AutoTokenizer
 
 
@@ -32,7 +32,7 @@ class Tokenizer:
         print("Time to split", time.time() - init_time)
         gc.collect()
         
-        ids = self.init_encode(text_chunks, initial_tokenizer)
+        ids = self.init_encode(text_chunks)
         del text_chunks
         print("Time to encode", time.time() - init_time)
         gc.collect()
@@ -58,11 +58,15 @@ class Tokenizer:
 
         return len(initial_tokenizer.get_vocab())
 
-    def init_encode(self, text_chunks, initial_tokenizer=None):
-        if not initial_tokenizer:
+    def encode_chunk(self, chunk):
+        return self.initial_tokenizer.encode(chunk, add_special_tokens=False)
+
+    def init_encode(self, text_chunks):
+        if not self.initial_tokenizer:
             return [list(ch.encode("utf-8")) for ch in text_chunks]
         else:
-            return [initial_tokenizer.encode(ch)[1:] for ch in text_chunks]
+            with Pool(cpu_count()) as pool:
+                return pool.map(self.encode_chunk, text_chunks)
 
     def _build_vocab(self):
         vocab = {idx: bytes([idx]) for idx in range(256)}
