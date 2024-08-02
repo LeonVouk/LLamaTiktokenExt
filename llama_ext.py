@@ -1,3 +1,4 @@
+import os
 import json
 import regex as re
 import time
@@ -5,8 +6,9 @@ import gc
 from multiprocessing import Pool, cpu_count
 from transformers import AutoTokenizer
 
-
 from ext_llama import train_loop as rust_train_loop
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 LLAMA3_SPLIT_PATTERN = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"
 
@@ -95,6 +97,7 @@ if __name__ == "__main__":
 
     def parse_args():
         parser = argparse.ArgumentParser()
+        parser.add_argument("--tokenizer", type=str, default="meta-llama/Meta-Llama-3-8B", help="Tokenizer to extend")
         parser.add_argument("--text", type=str, default=False, help="corpus")
         parser.add_argument("--vocab_size", type=int, default=130000, help="vocab size")
         parser.add_argument('--use_fast', action='store_true', help="Use fast tokenizer")
@@ -105,17 +108,21 @@ if __name__ == "__main__":
     with open(args.text, 'r', encoding='utf-8') as f:
         text = f.read()
 
-    llama_3_init = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", use_fast=args.use_fast)
+    init_tok = AutoTokenizer.from_pretrained(args.tokenizer, use_fast=args.use_fast)
+    
     tok = Tokenizer()
-
-    tok.train(text, args.vocab_size, llama_3_init, verbose=True)
+    tok.train(text, args.vocab_size, init_tok, verbose=True)
 
     with open('llama_3_ext.vocab', 'w') as f:
-        out_dict = {}
-        for k in tok.vocab:
-            out_dict[tok.decode([k])] = k
-        json.dump(out_dict, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {tok.decode([k]):k for k in tok.vocab}, 
+            f, 
+            ensure_ascii=False, 
+            indent=2
+        )
 
     with open('llama_3_ext.merges', 'w') as f:
-        f.writelines([f"{tok.decode([k[0]])} {tok.decode([k[1]])}\n" for k in tok.merges])
+        f.writelines(
+            [f"{tok.decode([k[0]])} {tok.decode([k[1]])}\n" for k in tok.merges]
+        )
 
